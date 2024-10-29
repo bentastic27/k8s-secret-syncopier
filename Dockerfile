@@ -1,5 +1,5 @@
 FROM python:3.12-slim AS parent
-
+ENV PYTHONUNBUFFERED=true
 WORKDIR /app
 
 COPY app.py .
