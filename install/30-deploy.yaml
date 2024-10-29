@@ -1,3 +1,9 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: secret-syncopier
+  namespace: secret-syncopier
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -15,6 +21,7 @@ spec:
       labels:
         app: secret-syncopier
     spec:
+      serviceAccountName: secret-syncopier
       securityContext:
         runAsUser: 1000
         runAsGroup: 1000

@@ -11,7 +11,7 @@ def main():
   count = 10
 
   for event in w.stream(co.list_cluster_custom_object, "beansnet.net", "v1", "secretsyncs"):
-    print("Event: %s %s/%s" % (event['type'], event['object'].metadata.namespace, event['object'].metadata.name))
+    print("Event: %s %s" % (event['type'], event['object']))
 
     # for testing
     count -= 1

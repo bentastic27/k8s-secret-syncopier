@@ -3,6 +3,9 @@ kind: ClusterRole
 metadata:
   name: secret-syncopier
 rules:
+- apiGroups: ["beansnet.net"]
+  resources: ["secretsyncs"]
+  verbs: ["get", "list", "watch"]
 - apiGroups: [""]
   resources: ["secrets"]
   verbs: ["*"]
