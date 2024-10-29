@@ -3,8 +3,8 @@ from time import sleep
 
 from kubernetes import client, config, watch
 
-config.load_kube_config()
-# config.load_incluster_config()
+#config.load_kube_config()
+config.load_incluster_config()
 v1 = client.CoreV1Api()
 co = client.CustomObjectsApi()
 w = watch.Watch()
