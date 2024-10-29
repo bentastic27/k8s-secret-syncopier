@@ -3,8 +3,8 @@ from time import sleep
 
 from kubernetes import client, config, watch
 
-#config.load_kube_config()
-config.load_incluster_config()
+config.load_kube_config()
+#config.load_incluster_config()
 v1 = client.CoreV1Api()
 co = client.CustomObjectsApi()
 w = watch.Watch()
@@ -45,18 +45,22 @@ def sync_from_secretsyncs(event):
         }
       }
 
+      ns_list = []
+      for ns in v1.list_namespace().items:
+        ns_list.append(ns.metadata.name)
+
       for destination_namespace in event['object']['spec']['destinationNamespaces']:
+        print(f"Syncing {destination_namespace}/{secret_name}")
+        if destination_namespace not in ns_list:
+          print(f"{destination_namespace} does not exist, skipping secret {secret_name}")
+          continue
         try:
-          print(f"Syncing {destination_namespace}/{secret_name}")
-          try:
-            v1.patch_namespaced_secret(secret_name, destination_namespace, source_secret)
-          except client.exceptions.ApiException as err:
-            if err.status == 404:
-              v1.create_namespaced_secret(destination_namespace, source_secret)
-            else:
-              print(err.body)
+          v1.patch_namespaced_secret(secret_name, destination_namespace, source_secret)
         except client.exceptions.ApiException as err:
-          print(err.body)
+          if err.status == 404:
+            v1.create_namespaced_secret(destination_namespace, source_secret)
+          else:
+            print(err.body)
 
     except client.exceptions.ApiException as err:
       print(err.body)
