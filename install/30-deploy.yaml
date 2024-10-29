@@ -21,4 +21,4 @@ spec:
         fsGroup: 1000
       containers:
       - name: secret-syncopier
-        image: bentastic27/secret-syncopier:latest
+        image: bentastic27/k8s-secret-syncopier:latest

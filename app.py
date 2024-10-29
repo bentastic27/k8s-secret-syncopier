@@ -5,7 +5,7 @@ def main():
   config.load_incluster_config()
   v1 = client.CoreV1Api()
   co = client.CustomObjectsApi()
-  w = watch.watch()
+  w = watch.Watch()
 
   # for testing
   count = 10
