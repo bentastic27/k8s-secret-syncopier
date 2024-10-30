@@ -127,18 +127,29 @@ def sync_from_secret_change(event):
 
 def destination_secret_cleanup(interval=300):
   while True:
+    print(f"Starting destination secret cleanup every {str(interval)} seconds")
     for secret in v1.list_secret_for_all_namespaces(label_selector="managed-by=secret-syncopier").items:
+      prune_secret = False
       secret_sync_annotation = secret.metadata.annotations['secret-syncopier']
+
       try:
-        co.get_namespaced_custom_object("beansnet.net", "v1", secret_sync_annotation.split("/")[0], "secretsyncs", secret_sync_annotation.split("/")[1])
+        secret_sync = co.get_namespaced_custom_object("beansnet.net", "v1", secret_sync_annotation.split("/")[0], "secretsyncs", secret_sync_annotation.split("/")[1])
       except client.exceptions.ApiException as err:
         if err.status == 404:
-          print(f"Pruning secret {secret.metadata.namespace}/{secret.metadata.name}")
-          v1.delete_namespaced_secret(secret.metadata.name, secret.metadata.namespace)
+          secret_sync = None
+          prune_secret = True
         else:
           print(err.body)
-      except client.exceptions.ApiException as err:
-        print(err.body)
+          continue
+      
+      if secret_sync is not None:
+        if secret.metadata.namespace not in secret_sync['spec']['destinationNamespaces']:
+          prune_secret = True
+      
+      if prune_secret:
+        print(f"Pruning secret {secret.metadata.namespace}/{secret.metadata.name}")
+        v1.delete_namespaced_secret(secret.metadata.name, secret.metadata.namespace)
+      
     sleep(interval)
 
 
