@@ -15,7 +15,14 @@ def sync_from_secretsyncs(event):
   secret_name = event['object']['spec']['sourceSecret']
   if event['type'] != "DELETED":
     try:
-      source_secret = v1.read_namespaced_secret(secret_name, namespace)
+      try:
+        source_secret = v1.read_namespaced_secret(secret_name, namespace)
+      except client.exceptions.ApiException as err:
+        if err.status == 404:
+          print(f"Source secret {namespace}/{secret_name}, doesn't exist, creating empty secret")
+          source_secret = v1.create_namespaced_secret(namespace, body={'metadata': {'name': secret_name}})
+        else:
+          print(err.body)
 
       if source_secret.metadata.labels is not None:
         new_labels = source_secret.metadata.labels.copy()
@@ -36,6 +43,7 @@ def sync_from_secretsyncs(event):
         }
       })
 
+      # changing metadata of the "source_secret" to apply to the destinations
       source_secret.metadata = {
         'name': secret_name,
         'labels': {'managed-by': 'secret-syncopier'},
@@ -52,12 +60,14 @@ def sync_from_secretsyncs(event):
       for destination_namespace in event['object']['spec']['destinationNamespaces']:
         print(f"Syncing {destination_namespace}/{secret_name}")
         if destination_namespace not in ns_list:
-          print(f"{destination_namespace} does not exist, skipping secret {secret_name}")
+          print(f"Namespace {destination_namespace} does not exist, skipping secret {secret_name}")
           continue
         try:
+          print(f"Patching {destination_namespace}/{secret_name} secret if it exists")
           v1.patch_namespaced_secret(secret_name, destination_namespace, source_secret)
         except client.exceptions.ApiException as err:
           if err.status == 404:
+            print(f"{destination_namespace}/{secret_name} doesn't exist, creating secret")
             v1.create_namespaced_secret(destination_namespace, source_secret)
           else:
             print(err.body)
@@ -94,8 +104,16 @@ def sync_from_secret_change(event):
     secret_sync_name = event['object'].metadata.annotations['sourced-by'].split("/")[1]
     secret_sync = co.get_namespaced_custom_object("beansnet.net", "v1", namespace, "secretsyncs", secret_sync_name)
     source_secret = v1.read_namespaced_secret(secret_name, namespace)
+
+    ns_list = []
+    for ns in v1.list_namespace().items:
+      ns_list.append(ns.metadata.name)
     
     for destination_namespace in secret_sync['spec']['destinationNamespaces']:
+      if destination_namespace not in ns_list:
+        print(f"Namespace {destination_namespace} from {namespace}/{secret_sync_name}'s .spec.destinationNamespaces does not exist, skipping")
+        continue
+
       destination_secret = v1.read_namespaced_secret(secret_name, destination_namespace)
       if source_secret.data != destination_secret.data:
         try:
